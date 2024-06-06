@@ -1,39 +1,48 @@
-import pickle
-import time
-import numpy as np
-import pandas as pd
-from dotenv import load_dotenv
-from selenium import webdriver
-from selenium.webdriver import Keys
-from selenium.webdriver.common.by import By
 import os
+import time
+import random
+import numpy as np
+import pickle
+import pandas as pd
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from dotenv import load_dotenv
+import undetected_chromedriver as uc
 
 
-# ankitnitj3@gmail.com, anupamm7464@gmail.com
-# ankitnitj3, anupamm
+class LinkedInScraper(uc.Chrome):
 
-class LinkedInScraper(webdriver.Chrome):
-
-    def __init__(self, driver_path):
+    def __init__(self, driver_path=None):
         self.driver_path = driver_path
 
+        # Creating a new DataFrame for each user query
         self.df = pd.DataFrame()
 
+        # Loading env file to get the path of the driver
         load_dotenv('data.env')
 
         driver_path_name = os.environ.get("DRIVER_PATH")
         os.environ['PATH'] += driver_path_name
-        options = webdriver.ChromeOptions()
-        # Setting our default browser as dummy browser so that captcha problem is solved
+
+        options = uc.ChromeOptions()
+        options.add_argument(
+            "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        )
+
+        # Setting our default browser as dummy browser so that authentication problem is solved
         options.add_argument(r'--user-data-dir=C:\Users\anupa\AppData\Local\Google\Chrome\User Data\Default')
+
         user_path_name = os.environ.get("USER_PATH")
         options.add_argument(user_path_name)
         super(LinkedInScraper, self).__init__(options=options)
         self.maximize_window()
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        # if self.teardown:
+    def __exit__(self, exc_type, exc_value, traceback):
         self.quit()
+
+    def random_delay(self):
+        time.sleep(random.uniform(1.0, 3.0))
 
     def getUrl(self, url):
         self.get(url)
@@ -41,36 +50,40 @@ class LinkedInScraper(webdriver.Chrome):
 
     # We need to do manual login in order to retrieve the data.
     def login(self):
+        # Getting Username and Password from env file.
+        USER_NAME = os.environ.get('USER_NAME')
+        PASSWORD = os.environ.get('PASSWORD')
 
         self.implicitly_wait(3)
         try:
             # Sending Email/Phone to the input field.
             emailInputText = self.find_element(By.CSS_SELECTOR, "input#session_key")
-            emailInputText.send_keys("anupamm7464@gmail.com")
+            emailInputText.send_keys(USER_NAME)
             self.implicitly_wait(1)
 
             # Sending Password to the input field.
             passwordInputText = self.find_element(By.CSS_SELECTOR, "input#session_password")
-            passwordInputText.send_keys("anupamm")
+            passwordInputText.send_keys(PASSWORD)
 
             # Clicking on the login button.
             login_button = self.find_element(By.CSS_SELECTOR, "button[data-id='sign-in-form__submit-btn']")
             login_button.click()
+            self.implicitly_wait(10)
 
         except Exception as e:
-
             self.implicitly_wait(2)
             print("Email, Password fields not found on LinkedIn Page. Trying another way to login.")
 
             try:
                 self.get("https://www.linkedin.com/login")
+
                 # Sending Email/Phone to the input field.
                 emailInputText = self.find_element(By.CSS_SELECTOR, "input#username")
-                emailInputText.send_keys("anupamm7464@gmail.com")
+                emailInputText.send_keys(USER_NAME)
 
                 # Sending Password to the input field.
                 passwordInputText = self.find_element(By.CSS_SELECTOR, "input#password")
-                passwordInputText.send_keys("anupamm")
+                passwordInputText.send_keys(PASSWORD)
 
                 # Clicking on the login button.
                 login_button = self.find_element(By.CSS_SELECTOR, "button.btn__primary--large.from__button--floating")
@@ -80,7 +93,6 @@ class LinkedInScraper(webdriver.Chrome):
                 print("Error in sending the email and password.")
 
     def searchGlobally(self):
-
         try:
             # Searching for the people globally.
             searchInput = self.find_element(By.CSS_SELECTOR, "input.search-global-typeahead__input")
@@ -101,21 +113,25 @@ class LinkedInScraper(webdriver.Chrome):
             print("Error in clicking on see all people option.")
 
         self.implicitly_wait(5)
-        personList = self.find_elements(By.CSS_SELECTOR, "ul.reusable-search__entity-result-list list-style-none>li")
+        personList = self.find_elements(By.CSS_SELECTOR, "ul.reusable-search__entity-result-list.list-style-none>li")
         for person in personList:
             print(person.text)
 
-    # Example of an good profile to scrap : "https://www.linkedin.com/in/ankit-kumar-035379191/"
-    def getPersonList(self):
+    def getPersonList(self, first_name, last_name):
+
+        time.sleep(15)
+
+        # Storing the links of individuals that appears on search page.
         links = []
 
         try:
             self.implicitly_wait(2)
-            self.get("https://www.linkedin.com/search/results/people/?keywords=Abhishek%20Kumar&origin=GLOBAL_SEARCH_HEADER")
+            self.get(f"https://www.linkedin.com/search/results/people/?keywords={first_name}%20{last_name}&origin=GLOBAL_SEARCH_HEADER")
             self.implicitly_wait(5)
             personList = self.find_elements(By.CSS_SELECTOR, "li.reusable-search__result-container")
             print(len(personList))
             for person in personList:
+                # Extracting link of all the profiles of the people.
                 link = person.find_element(By.CSS_SELECTOR, "a.app-aware-link").get_attribute("href")
                 links.append(link)
 
@@ -162,7 +178,6 @@ class LinkedInScraper(webdriver.Chrome):
         except:
             try:
                 about = self.find_element(By.CSS_SELECTOR, "div.display-flex.ph5.pv3>div.inline-show-more-text--is-collapsed-with-line-clamp>span.visually-hidden").text
-                # about = aboutContainer.find_element(By.CSS_SELECTOR, "span.visually-hidden").text
             except:
                 about = np.NAN
 
@@ -179,7 +194,16 @@ class LinkedInScraper(webdriver.Chrome):
         # Extracting activities
         activity_list = []
         try:
-            activities = self.find_elements(By.CSS_SELECTOR, "ul[data-test-id='activities__list']>li")
+            # profile-creator-shared-feed-update__mini-container
+            try:
+                activities = self.find_elements(By.CSS_SELECTOR, "li.profile-creator-shared-feed-update__mini-container")
+            except:
+                try:
+                    activities = self.find_elements(By.CSS_SELECTOR, "ul[data-test-id='activities__list']>li")
+                except:
+                    activities = []
+                    print("No activities Found")
+
             for activity in activities:
                 activity_dict = {}
                 try:
@@ -295,7 +319,11 @@ class LinkedInScraper(webdriver.Chrome):
             education_list = []
             print("No Education Found")
 
-        linkedIn_url = self.current_url
+        try:
+            linkedIn_url = self.current_url
+        except:
+            linkedIn_url = np.NAN
+
         print(linkedIn_url, name, summary, about, activity_list, experiences_list, education_list)
         information_dict = {'profile_link': linkedIn_url, 'username': name, 'summary': summary, 'about': about,
                             'activity': activity_list, 'experience': experiences_list, 'education': education_list}
@@ -308,7 +336,7 @@ class LinkedInScraper(webdriver.Chrome):
     def saveDf(self):
         temp_df_dict = self.df.to_dict()
         with open('df.pickle', 'wb') as handle:
-            pickle.dump(temp_df_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
+            pickle.dump(temp_df_dict, handle)
 
     def loadDf(self, file_name):
         with open(file_name, 'rb') as handle:
