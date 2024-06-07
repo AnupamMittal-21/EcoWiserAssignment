@@ -1,12 +1,9 @@
 import os
 import time
-import random
 import numpy as np
 import pickle
 import pandas as pd
-from selenium import webdriver
 from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
 from dotenv import load_dotenv
 import undetected_chromedriver as uc
 
@@ -18,6 +15,9 @@ class LinkedInScraper(uc.Chrome):
 
         # Creating a new DataFrame for each user query
         self.df = pd.DataFrame()
+        self.firstName = "First"
+        self.lastName = "Last"
+        self.count = 0
 
         # Loading env file to get the path of the driver
         load_dotenv('data.env')
@@ -41,9 +41,6 @@ class LinkedInScraper(uc.Chrome):
     def __exit__(self, exc_type, exc_value, traceback):
         self.quit()
 
-    def random_delay(self):
-        time.sleep(random.uniform(1.0, 3.0))
-
     def getUrl(self, url):
         self.get(url)
         time.sleep(5)
@@ -55,81 +52,43 @@ class LinkedInScraper(uc.Chrome):
         PASSWORD = os.environ.get('PASSWORD')
 
         self.implicitly_wait(3)
+
         try:
             # Sending Email/Phone to the input field.
-            emailInputText = self.find_element(By.CSS_SELECTOR, "input#session_key")
+            emailInputText = self.find_element(By.CSS_SELECTOR, "input#username")
             emailInputText.send_keys(USER_NAME)
-            self.implicitly_wait(1)
 
             # Sending Password to the input field.
-            passwordInputText = self.find_element(By.CSS_SELECTOR, "input#session_password")
+            passwordInputText = self.find_element(By.CSS_SELECTOR, "input#password")
             passwordInputText.send_keys(PASSWORD)
 
             # Clicking on the login button.
-            login_button = self.find_element(By.CSS_SELECTOR, "button[data-id='sign-in-form__submit-btn']")
+            login_button = self.find_element(By.CSS_SELECTOR, "button.btn__primary--large.from__button--floating")
             login_button.click()
-            self.implicitly_wait(10)
 
         except Exception as e:
-            self.implicitly_wait(2)
-            print("Email, Password fields not found on LinkedIn Page. Trying another way to login.")
-
-            try:
-                self.get("https://www.linkedin.com/login")
-
-                # Sending Email/Phone to the input field.
-                emailInputText = self.find_element(By.CSS_SELECTOR, "input#username")
-                emailInputText.send_keys(USER_NAME)
-
-                # Sending Password to the input field.
-                passwordInputText = self.find_element(By.CSS_SELECTOR, "input#password")
-                passwordInputText.send_keys(PASSWORD)
-
-                # Clicking on the login button.
-                login_button = self.find_element(By.CSS_SELECTOR, "button.btn__primary--large.from__button--floating")
-                login_button.click()
-
-            except Exception as e:
-                print("Error in sending the email and password.")
-
-    def searchGlobally(self):
-        try:
-            # Searching for the people globally.
-            searchInput = self.find_element(By.CSS_SELECTOR, "input.search-global-typeahead__input")
-            searchInput.send_keys("Ankit Kumar")
-            searchInput.send_keys(Keys.ENTER)
-            time.sleep(3)
-
-        except Exception as e:
-            print("Error in searching globally.")
-
-        try:
-            # Clicking on See all people option.
-            self.implicitly_wait(5)
-            seeAllPeople = self.find_element(By.CSS_SELECTOR, "a.app-aware-link")
-            seeAllPeople.click()
-
-        except Exception as e:
-            print("Error in clicking on see all people option.")
-
-        self.implicitly_wait(5)
-        personList = self.find_elements(By.CSS_SELECTOR, "ul.reusable-search__entity-result-list.list-style-none>li")
-        for person in personList:
-            print(person.text)
+            print("Error in Login...")
 
     def getPersonList(self, first_name, last_name):
 
-        time.sleep(15)
+        # Used to check for the names of the person. and storing the file name.
+        self.firstName = first_name
+        self.lastName = last_name
 
+        time.sleep(5)
         # Storing the links of individuals that appears on search page.
+
         links = []
 
         try:
             self.implicitly_wait(2)
             self.get(f"https://www.linkedin.com/search/results/people/?keywords={first_name}%20{last_name}&origin=GLOBAL_SEARCH_HEADER")
+
             self.implicitly_wait(5)
+
             personList = self.find_elements(By.CSS_SELECTOR, "li.reusable-search__result-container")
-            print(len(personList))
+            print("Total Person with this name on the current page are : ", len(personList))
+
             for person in personList:
                 # Extracting link of all the profiles of the people.
                 link = person.find_element(By.CSS_SELECTOR, "a.app-aware-link").get_attribute("href")
@@ -140,63 +99,46 @@ class LinkedInScraper(uc.Chrome):
 
         return links
 
-    def getPersonInfo(self, link):
-        self.get(link)
-        self.implicitly_wait(10)
-
-        # If option to sign up comes, then close it.
-        try:
-            self.find_element(By.CSS_SELECTOR, "svg.artdeco-icon.lazy-loaded").click()
-        except Exception as e:
-            print("No close button found.")
-
-        # Extracting Name - Done
+    def getName(self):
         try:
             name = self.find_element(By.CSS_SELECTOR, "h1").text
         except:
             name = np.NAN
             print("No Name Found")
 
-        print(name)
+        return name
 
-        # Extracting summary - Done
+    def getSummary(self):
         try:
-            summary = self.find_element(By.CSS_SELECTOR, "h2.top-card-layout__headline.break-words.font-sans.leading-open.text-color-text").text
+            summary = self.find_element(By.CSS_SELECTOR,
+                                        "h2.top-card-layout__headline.break-words.font-sans.leading-open.text-color-text").text
         except:
             try:
                 summary = self.find_element(By.CSS_SELECTOR, "div.text-body-medium.break-words").text
-
             except:
                 summary = np.NAN
+                print("No summary Found.")
 
-        print(summary)
+        return summary
 
-        # Extracting about - Done
-        # Need to handle show more case
+    def getAbout(self):
         try:
-            about = self.find_element(By.CSS_SELECTOR, "div.core-section-container__content.break-words").text
+            # This is to get the second sibling of the div with ID = about
+            about_container = self.find_element(By.XPATH, "//div[@id='about']/following-sibling::*[2]")
+            about_text = about_container.find_element(By.CSS_SELECTOR, "span.visually-hidden").text
         except:
-            try:
-                about = self.find_element(By.CSS_SELECTOR, "div.display-flex.ph5.pv3>div.inline-show-more-text--is-collapsed-with-line-clamp>span.visually-hidden").text
-            except:
-                about = np.NAN
+            about_text = np.NAN
+            print("No About Found.")
 
-        print(about)
+        return about_text
 
-        # Extracting skills
-        try:
-            skills = self.find_element(By.CSS_SELECTOR, "div.display-flex.align-items-center.t-14.t-normal").text
-        except:
-            skills = np.NAN
-
-        print(skills)
-
+    def getActivities(self):
         # Extracting activities
         activity_list = []
         try:
-            # profile-creator-shared-feed-update__mini-container
             try:
-                activities = self.find_elements(By.CSS_SELECTOR, "li.profile-creator-shared-feed-update__mini-container")
+                activities = self.find_elements(By.CSS_SELECTOR,
+                                                "li.profile-creator-shared-feed-update__mini-container")
             except:
                 try:
                     activities = self.find_elements(By.CSS_SELECTOR, "ul[data-test-id='activities__list']>li")
@@ -227,119 +169,172 @@ class LinkedInScraper(uc.Chrome):
                 activity_dict['Text'] = activity_text
                 activity_dict['Link'] = activity_link
                 activity_list.append(activity_dict)
-                print(activity_text, activity_link)
+                print("Activities : ")
+                print(activity_dict)
         except:
-            activites = []
+            print("No Activities found.")
 
-        # Extracting experience
-        self.implicitly_wait(3)
-        experiences_list = []
-        try:
-            experiences = self.find_elements(By.CSS_SELECTOR, "ul.experience__list>li")
-            for experience in experiences:
-                experience_dict = {}
-                try:
-                    experience_link = experience.find_element(By.CSS_SELECTOR, "a").get_attribute('href')
-                except:
-                    experience_link = np.NAN
-                    print("No Experience Link found.")
+        # Converting to string to store in DataFrame
+        activity_list_str = [str(activity) for activity in activity_list]
+        return activity_list_str
 
-                try:
-                    experience_post = experience.find_element(By.CSS_SELECTOR, "span.experience-item__title").text
-                except:
-                    experience_post = np.NAN
-                    print("No Experience Post found.")
-
-                try:
-                    experience_company = experience.find_element(By.CSS_SELECTOR, "span.experience-item__subtitle").text
-                except:
-                    experience_company = np.NAN
-                    print("No Experience Company found.")
-
-                # Iske aage ke abhi sahi nhi h.
-                try:
-                    experience_timeline = experience.find_elements(By.CSS_SELECTOR, "p.experience-item__meta-item")[
-                        0].text
-                except:
-                    experience_timeline = np.NAN
-                    print("No Experience Timeline found.")
-
-                try:
-                    experience_location = experience.find_elements(By.CSS_SELECTOR, "p.experience-item__meta-item")[
-                        1].text
-                except:
-                    experience_location = np.NAN
-                    print("No Experience Location found.")
-
-                try:
-                    experience_detail = experience.find_element(By.CSS_SELECTOR,
-                                                                "p.show-more-less-text__text--more").text
-                except:
-                    experience_detail = np.NAN
-                    print("No Experience Detail found.")
-
-                experience_dict['Link'] = experience_link
-                experience_dict['Post'] = experience_post
-                experience_dict['Company'] = experience_company
-                experience_dict['Timeline'] = experience_timeline
-                experience_dict['Location'] = experience_location
-                experience_dict['Detail'] = experience_detail
-
-                print(experience_dict)
-                experiences_list.append(experience_dict)
-        except:
-            experiences_list = []
-            print("No Experience Found.")
-
-        # Extracting education
+    def getEducation(self):
         education_list = []
         try:
-            educationList = self.find_elements(By.CSS_SELECTOR, "ul.education__list>li")
-            for education in educationList:
+            # Fetching second sibling of the div with id = education
+            education_div = self.find_element(By.XPATH, "//div[@id='education']/following-sibling::*[2]")
+            education_list_container = education_div.find_elements(By.CSS_SELECTOR, "li")
+            for education in education_list_container:
                 education_dict = {}
 
                 try:
-                    education_link = education.find_element(By.CSS_SELECTOR, "a").get_attribute('href')
-                except:
-                    print("No Education Link found")
-                    education_link = np.NAN
+                    education_center = education.find_element(By.CSS_SELECTOR, "div.justify-space-between")
 
-                try:
-                    education_institute = education.find_element(By.CSS_SELECTOR,
-                                                                 "span.education-item__school-name").text
+                    try:
+                        education_link = education_center.find_element(By.CSS_SELECTOR, "a").get_attribute("href")
+                    except:
+                        education_link = np.NAN
+
+                    try:
+                        education_institute = education_center.find_element(By.CSS_SELECTOR, "div.display-flex ").text
+                    except:
+                        education_institute = np.NAN
+
+                    try:
+                        education_detail_container = education_center.find_elements(By.CSS_SELECTOR,
+                                                                                    "span.t-14.t-normal")
+
+                        education_branch = education_detail_container[0].text
+                        education_timeline = education_detail_container[1].text
+                    except:
+                        education_branch = np.NAN
+                        education_timeline = np.NAN
+
                 except:
+                    print("No Education Container found.")
+                    education_link = np.NAN
                     education_institute = np.NAN
-                    print("No Education Institute found.")
+                    education_branch = np.NAN
+                    education_timeline = np.NAN
 
                 education_dict['Link'] = education_link
                 education_dict['Institute'] = education_institute
+                education_dict['Domain'] = education_branch
+                education_dict['Timeline'] = education_timeline
                 education_list.append(education_dict)
-                print(education.text)
+                print("Education : ")
+                print(education_dict)
         except:
             education_list = []
             print("No Education Found")
 
+        education_list_str = [str(activity) for activity in education_list]
+        return education_list_str
+
+    def getExperience(self):
+        experience_list = []
+        try:
+            experience_div = self.find_element(By.XPATH, "//div[@id='education']/following-sibling::*[2]")
+            experience_list_container = experience_div.find_elements(By.CSS_SELECTOR, "li")
+            for experience in experience_list_container:
+                experience_dict = {}
+
+                try:
+                    experience_center = experience.find_element(By.CSS_SELECTOR, "div.justify-space-between")
+
+                    try:
+                        experience_link = experience_center.find_element(By.CSS_SELECTOR, "a").get_attribute("href")
+                    except:
+                        experience_link = np.NAN
+
+                    try:
+                        experience_name = experience_center.find_element(By.CSS_SELECTOR, "div.display-flex ").text
+                    except:
+                        experience_name = np.NAN
+
+                    try:
+                        education_detail_container = experience_center.find_elements(By.CSS_SELECTOR,
+                                                                                     "span.t-14.t-normal")
+
+                        experience_timeline = education_detail_container[0].text
+                        experience_location = education_detail_container[1].text
+                    except:
+                        experience_location = np.NAN
+                        experience_timeline = np.NAN
+
+                except:
+                    print("N0 Experience Container found.")
+                    experience_link = np.NAN
+                    experience_name = np.NAN
+                    experience_location = np.NAN
+                    experience_timeline = np.NAN
+
+                experience_dict['Link'] = experience_link
+                experience_dict['Institute'] = experience_name
+                experience_dict['Domain'] = experience_location
+                experience_dict['Timeline'] = experience_timeline
+                experience_list.append(experience_dict)
+                print("Experience : ")
+                print(experience_dict)
+        except:
+            print("No Experience Found")
+
+        experience_list_str = [str(activity) for activity in experience_list]
+        return experience_list_str
+
+    def checkName(self, name):
+        name = name.split(" ")
+        first_name = name[0].strip(' ')
+        last_name = name[1].strip(' ')
+
+        if self.count >= 5:
+            return False
+
+        if self.lastName == last_name and self.firstName == first_name:
+            return True
+        return False
+
+    def getPersonInfo(self, link):
+        self.get(link)
+        self.implicitly_wait(10)
+
+        # Extracting Name
+        name = self.getName()
+
+        if not self.checkName(name):
+            return
+
+        # Extracting summary
+        summary = self.getSummary()
+
+        # Extracting about
+        about_text = self.getAbout()
+
+        # Extracting activities
+        activity_str = self.getActivities()
+
+        # Extracting education
+        education_str = self.getEducation()
+
+        # Extracting experience
+        experience_str = self.getExperience()
+
+        # Extracting LinkedIn URL
         try:
             linkedIn_url = self.current_url
         except:
             linkedIn_url = np.NAN
 
-        print(linkedIn_url, name, summary, about, activity_list, experiences_list, education_list)
-        information_dict = {'profile_link': linkedIn_url, 'username': name, 'summary': summary, 'about': about,
-                            'activity': activity_list, 'experience': experiences_list, 'education': education_list}
+        information_dict = {'profile_link': linkedIn_url, 'username': name, 'summary': summary, 'about': about_text,
+                            'activity': activity_str, 'experience': experience_str, 'education': education_str}
 
         print("Each Detail of a User is ", information_dict)
         information_dict = pd.DataFrame([information_dict])
-        self.df = pd.concat([self.df, information_dict], ignore_index= True)
-
+        self.df = pd.concat([self.df, information_dict], ignore_index=True)
+        self.count += 1
 
     def saveDf(self):
         temp_df_dict = self.df.to_dict()
         with open('df.pickle', 'wb') as handle:
             pickle.dump(temp_df_dict, handle)
-
-    def loadDf(self, file_name):
-        with open(file_name, 'rb') as handle:
-            b = pickle.load(handle)
-
-        print(b)
+        self.df.to_csv(f'{self.firstName} {self.lastName}.csv', index=False)
