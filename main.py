@@ -1,9 +1,7 @@
 import os
 from dotenv import load_dotenv
 from linkedInScraper import LinkedInScraper
-import time
 from api import run_api
-import json
 import pandas as pd
 import pickle
 
@@ -13,8 +11,8 @@ def main(firstName, lastName, api=False):
     driver_path_name = os.environ.get("DRIVER_PATH")
 
     with LinkedInScraper(driver_path_name) as bot:
-        # bot.getUrl("https://www.linkedin.com/login")
-        # bot.login()
+        bot.getUrl("https://www.linkedin.com/login")
+        bot.login()
         links = bot.getPersonList(firstName, lastName)
 
         if api:
