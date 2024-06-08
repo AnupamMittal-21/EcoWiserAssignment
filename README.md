@@ -12,12 +12,15 @@ This Streamlit app allows users to scrape LinkedIn profiles using Selenium for w
 
 ## Demo
 
-[YouTube Demo Link](https://youtube.com)
+[YouTube Demo Link](https://youtu.be/vBipu3pU2iM)
 
 ## Screenshots
 
 ### UI with Both Options to Scrape with API or Web Scraping
 ![UI Image](https://github.com/AnupamMittal-21/EcoWiserAssignment/assets/96871662/10c71617-8f26-4dea-b7fa-f816ef62ca3b)
+
+### Results are fetched based on firstname and lastname
+![image](https://github.com/AnupamMittal-21/EcoWiserAssignment/assets/96871662/aa2becc6-1393-465f-98de-d56e4b5fdc0d)
 
 ### Dataframe Created Using Web Scraping
 ![Dataframe - Web Scraping](https://github.com/AnupamMittal-21/EcoWiserAssignment/assets/96871662/748bef08-d038-4c57-9d56-1a2fe84aca95)
@@ -63,16 +66,19 @@ This Streamlit app allows users to scrape LinkedIn profiles using Selenium for w
    ```
 
 4. **Setup Environment Variables**
-   - Create a `.env` file in the root directory of the project.
-   - Add your Proxycurl API key and the path to your ChromeDriver in the `.env` file:
+   - Create a `data.env` file in the root directory of the project.
+   - Add your Proxycurl API key and the path to your ChromeDriver in the `data.env` file:
      ```
-     PROXYCURL_API_KEY=your_proxycurl_api_key
-     CHROMEDRIVER_PATH=/path/to/your/chromedriver
+     DRIVER_PATH = C:\ChromeDriver\chromedriver.exe
+     USER_PATH =--user-data-dir=C:\Users\your_user_name\AppData\Local\Google\Chrome\User Data\Default
+     USER_NAME = your_email_address
+     PASSWORD = your_linkedin_password
+     PROXY_CURL_API_KEY = your_proxycurl_api_key
      ```
 
 5. **Run the App**
    ```bash
-   streamlit run app.py
+   streamlit run run.py
    ```
 
 ## Usage
@@ -87,9 +93,9 @@ This Streamlit app allows users to scrape LinkedIn profiles using Selenium for w
 
 - `app.py`: Main Streamlit app file.
 - `requirements.txt`: Required Python packages.
-- `scraper/`: Contains the scraping logic.
+- `linkedInScraper`: Contains the scraping logic.
 - `data/`: Stores CSV and pickle files.
-- `.env`: Contains environment variables (API key, ChromeDriver path).
+- `data.env`: Contains environment variables (API key, ChromeDriver path).
 
 ## License
 
@@ -98,7 +104,3 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 ## Contributing
 
 Contributions are welcome! Please open an issue or submit a pull request for any improvements or bug fixes.
-
----
-
-Feel free to modify this README to better fit your project's specific details.
