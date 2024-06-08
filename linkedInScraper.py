@@ -289,10 +289,6 @@ class LinkedInScraper(uc.Chrome):
         name = name.split(" ")
         first_name = name[0].strip(' ')
         last_name = name[1].strip(' ')
-
-        if self.count >= 5:
-            return False
-
         if self.lastName == last_name and self.firstName == first_name:
             return True
         return False
