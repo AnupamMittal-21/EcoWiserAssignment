@@ -122,6 +122,7 @@ class LinkedInScraper(uc.Chrome):
         return summary
 
     def getAbout(self):
+        self.implicitly_wait(5)
         try:
             # This is to get the second sibling of the div with ID = about
             about_container = self.find_element(By.XPATH, "//div[@id='about']/following-sibling::*[2]")
@@ -133,6 +134,7 @@ class LinkedInScraper(uc.Chrome):
         return about_text
 
     def getActivities(self):
+        self.implicitly_wait(5)
         # Extracting activities
         activity_list = []
         try:
@@ -179,6 +181,7 @@ class LinkedInScraper(uc.Chrome):
         return activity_list_str
 
     def getEducation(self):
+        self.implicitly_wait(5)
         education_list = []
         try:
             # Fetching second sibling of the div with id = education

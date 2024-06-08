@@ -17,7 +17,8 @@ if button:
 
 if api_button:
     main(firstName,lastName, api=True)
-    # with open("df_api.pickle", 'rb') as handle:
-    #     df2 = pickle.load(handle)
-    # st.dataframe(df2)
+    with open("df2.pickle", 'rb') as handle:
+        df2 = pickle.load(handle)
+    st.dataframe(df2)
+
 st.write("Made with ❤️ by Anupam Mittal")
